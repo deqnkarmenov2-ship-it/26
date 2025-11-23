@@ -377,8 +377,8 @@
         // КОНСТАНТИ - УВЕРЕТЕ СЕ, ЧЕ API_ENDPOINT Е АКТУАЛЕН
         // ==============================================================================
         const API_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEVc1FWkjDkIBmBUs6ubp09bFD48vyRB6zlOshR3bJhqU3VP6pfyb7flOdqwPEHSKc/exec"; 
-        const LS_UNLOCKED_STATUS = 'isProUnlocked_AppsScript'; // Ключ за статуса в localStorage
-        const LS_UUID = 'deviceUUID'; // Ключ за UUID в localStorage
+        const LS_UNLOCKED_STATUS = 'isProUnlocked_AppsScript'; 
+        const LS_UUID = 'deviceUUID'; 
         const EURO_RATE = 1.95583;
 
         let deferredPrompt; 
@@ -450,28 +450,44 @@
 
         
         // ==============================================================================
-        // ФУНКЦИИ ЗА UUID (МАКСИМАЛНА УСТОЙЧИВОСТ)
+        // ФУНКЦИИ ЗА UUID (ФИНАЛНА ЛОГИКА: localStorage + Cookie Fallback)
         // ==============================================================================
         function getOrCreateUUID() {
+            const cookieName = 'deviceUUID_C';
             let uuid = localStorage.getItem(LS_UUID);
-            
-            if (!uuid) {
-                // Генерира нов UUIDv4
-                uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                    const r = Math.random() * 16 | 0;
-                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
-                
-                // Запазва го трайно (докато браузърът не изчисти LocalStorage)
-                localStorage.setItem(LS_UUID, uuid);
-                console.log('Нов UUID генериран:', uuid); 
-            } else {
-                console.log('Съществуващ UUID зареден:', uuid);
+
+            // 1. Проверка в LocalStorage (Основен метод)
+            if (uuid) {
+                console.log('Съществуващ UUID зареден от LocalStorage:', uuid);
+                return uuid;
             }
-            
+
+            // 2. Проверка в Cookie (Резервен метод - Fallback)
+            // Регулярният израз търси: начало на низ ИЛИ интервал, последван от 'deviceUUID_C=', 
+            // и след това взима всичко до точка и запетая.
+            const cookieMatch = document.cookie.match(new RegExp('(^| )' + cookieName + '=([^;]+)'));
+            if (cookieMatch) {
+                uuid = cookieMatch[2];
+                localStorage.setItem(LS_UUID, uuid); // Мигрира обратно към LocalStorage
+                console.log('UUID зареден от Cookie и мигриран към LocalStorage:', uuid);
+                return uuid;
+            }
+
+            // 3. Генериране на нов UUID
+            uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+
+            // Записва на двете места за максимална устойчивост
+            localStorage.setItem(LS_UUID, uuid);
+            // Записва Cookie, което изтича след много дълго време (31.12.9999 г.)
+            document.cookie = `${cookieName}=${uuid}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/;`;
+            console.log('Нов UUID генериран и записан:', uuid);
             return uuid;
         }
+
 
         // ==============================================================================
         // ПОМОЩНИ ФУНКЦИИ
@@ -568,7 +584,7 @@
         }
         
         // ==============================================================================
-        // КОРЕКТИРАН АЛГОРИТЪМ ЗА ИЗЧИСЛЯВАНЕ НА РЕСТОТО
+        // АЛГОРИТЪМ ЗА ИЗЧИСЛЯВАНЕ НА РЕСТОТО
         // ==============================================================================
 
         function calculateResto() {
