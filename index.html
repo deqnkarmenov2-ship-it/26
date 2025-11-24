@@ -358,7 +358,10 @@
                     Необходим е <span style='color: #d93025; font-weight: bold;'>КОД</span> за достъп до калкулатора.
                 </a>
                 
-                <p style="font-size: 14px; margin: 15px 0 5px 0;">Въведи данни за отключване:</p> 
+                <p style="font-size: 14px; margin: 15px 0 5px 0; line-height: 1.4;">
+                    Моля, въведете вашия <span style='color: #d93025; font-weight: bold;'>EMAIL</span> и <span style='color: #d93025; font-weight: bold;'>УНИКАЛЕН КОД</span>, получен след 
+                    <a href="[СЛОЖЕТЕ ВАШИЯ GUMROAD ЛИНК ТУК]" target="_blank" style="color: #d93025; text-decoration: underline; font-weight: bold;">покупка</a>.
+                </p>
                 
                 <input type="email" id="userEmail" placeholder="ВЪВЕДЕТЕ EMAIL" style="margin-bottom: 10px;"/> 
                 
@@ -549,7 +552,7 @@
             const userEmail = document.getElementById('userEmail').value.trim().toLowerCase(); 
             const uuid = getOrCreateUUID();
             
-            // *** КОРЕКЦИЯ: Имейлът вече не е задължителен тук (за да работи Master Key без имейл) ***
+            // КОРЕКЦИЯ: Имейлът вече не е задължителен тук (за да работи Master Key без имейл)
             if (!unlockKey) {
                 alert("Моля, въведете Вашия код.");
                 return;
