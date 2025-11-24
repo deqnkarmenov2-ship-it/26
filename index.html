@@ -334,7 +334,7 @@
             <div class="lock-content">
                 
                 <a href="[СЛОЖЕТЕ ВАШИЯ GUMROAD ЛИНК ТУК]" class="btn-unlock-buy" target="_blank" style="margin-top: 0; margin-bottom: 25px; background-color: #158062 !important;">
-                    КУПИ СЕГА И АКТИВИРАЙ
+                    КУПИ СЕГА
                 </a>
                 
                 <p style="font-size: 16px; margin: 0 0 25px 0; line-height: 1.4; color: black; font-weight: 500;">
@@ -347,10 +347,7 @@
                 
                 <button class="btn-calc btn-unlock-buy" onclick="unlockFeature()" style="margin-top: 10px; margin-bottom: 0;">АКТИВИРАЙ</button> 
 
-                <p class="small-info" style="margin-top: 20px;">
-                    Използвайте горния бутон, за да получите Вашия код.
-                </p>
-            </div>
+                </div>
         </div>
         </div>
     
@@ -535,7 +532,7 @@
 
             // Временно съобщение по време на AJAX заявката
             document.getElementById('unlockKey').placeholder = "Проверка на кода и имейла... Моля, изчакайте.";
-            document.querySelector('.lock-content .btn-calc').disabled = true;
+            document.querySelector('.lock-content .btn-unlock-buy').disabled = true;
 
             try {
                 // ИЗПРАЩАНЕ НА КОД, ИМЕЙЛ И UUID КЪМ APPS SCRIPT
@@ -567,7 +564,7 @@
             document.getElementById('unlockKey').value = ''; 
             document.getElementById('userEmail').value = ''; 
             document.getElementById('unlockKey').placeholder = "ВЪВЕДЕТЕ ВАШИЯ КОД ТУК"; 
-            document.querySelector('.lock-content .btn-calc').disabled = false;
+            document.querySelector('.lock-content .btn-unlock-buy').disabled = false;
             checkProStatus(); // Обновява статуса на заключване
         }
         
