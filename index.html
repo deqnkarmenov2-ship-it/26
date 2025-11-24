@@ -372,12 +372,11 @@
         const LS_UNLOCKED_STATUS = 'isProUnlocked_AppsScript';
         const LS_UUID = 'device_uuid';
         const COOKIE_UUID = 'uuid_cookie'; 
-
+        
         let deferredPrompt; 
         const installPrompt = document.getElementById('installPrompt');
         const installButton = document.getElementById('installButton');
         const dismissButton = document.getElementById('dismissButton');
-        const LS_INSTALLED_STATUS = 'pwa_installed'; 
         
         // ==============================================================================
         // PWA - ЛОГИКА ЗА ОФЛАЙН И ИНСТАЛАЦИЯ (Изисква service-worker.js) 
@@ -394,37 +393,39 @@
                     });
             });
             
-            // Записваме промпта, но го показваме само след активация
+            // Записваме промпта
             window.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 deferredPrompt = e;
+                // Покажи промпта веднага, ако вече е отключено
+                if (localStorage.getItem(LS_UNLOCKED_STATUS) === 'true') {
+                     showInstallPrompt();
+                }
             });
             
             window.addEventListener('appinstalled', () => {
                 installPrompt.style.display = 'none';
-                localStorage.setItem(LS_INSTALLED_STATUS, 'true');
                 deferredPrompt = null;
             });
         }
         
         installButton.addEventListener('click', () => {
             if (deferredPrompt) {
-                installPrompt.style.display = 'none';
+                installPrompt.style.display = 'none'; // Скрива се преди показване на нативния прозорец
                 deferredPrompt.prompt();
                 
                 deferredPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        localStorage.setItem(LS_INSTALLED_STATUS, 'true');
-                    }
+                    // Приемане или отказване води до нулиране на промпта
                     deferredPrompt = null;
                 });
             }
         });
         
         dismissButton.addEventListener('click', () => {
+            // Просто скрива модала, което позволява повторно показване при рефреш.
             installPrompt.style.display = 'none';
         });
-
+    
         
         // ==============================================================================
         // ФУНКЦИИ ЗА UUID 
@@ -519,8 +520,6 @@
                 localStorage.removeItem('resto_cashEur');
                 
                 // 3. НУЛИРАНЕ НА UUID СЛОТА:
-                // Изтриваме UUID от LocalStorage и Cookie.
-                // При следващото извикване на getOrCreateUUID() ще се генерира нов.
                 localStorage.removeItem(LS_UUID);
                 deleteUUIDCookie(); 
                 
@@ -550,10 +549,8 @@
                 lockedContent.style.opacity = '1';
                 lockedContent.style.pointerEvents = 'auto'; 
                 
-                // Показване на PWA промпта, след като приложението е активно и е минало reset
-                if (localStorage.getItem('resto_lastResetTime') !== '0') {
-                    showInstallPrompt();
-                }
+                // *** ПРОМЯНА: Показване на PWA промпта, ако е налично (след отключване)
+                showInstallPrompt();
             } else {
                 fullLockOverlay.style.display = 'flex';
                 lockedContent.style.opacity = '0'; 
@@ -561,16 +558,12 @@
             }
         }
         
-        // ФУНКЦИЯ ЗА ПОКАЗВАНЕ НА ИНСТАЛАЦИОННИЯ ПРОЗОРЕЦ (след успешна активация)
+        // ФУНКЦИЯ ЗА ПОКАЗВАНЕ НА ИНСТАЛАЦИОННИЯ ПРОЗОРЕЦ (ПРОМЕНЕНА: без таймер)
         function showInstallPrompt() {
-             const isInstalled = localStorage.getItem(LS_INSTALLED_STATUS) === 'true' || window.matchMedia('(display-mode: standalone)').matches;
-                
-             if (!isInstalled && deferredPrompt) {
-                 installPrompt.style.display = 'block';
-                
-                 setTimeout(() => {
-                     installPrompt.style.display = 'none';
-                 }, 15000); 
+              // Показва модала само ако deferredPrompt е налично (т.е. браузърът го поддържа)
+              // и приложението не е инсталирано като standalone.
+             if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
+                  installPrompt.style.display = 'block';
              }
         }
 
@@ -600,14 +593,15 @@
                     // *** НОВО: Записваме време за нулиране при активация, за да започне брояча
                     localStorage.setItem('resto_lastResetTime', new Date().getTime());
                     alert(`Успех! Приложението е отключено! ${data.message}`);
-                    showInstallPrompt(); // <--- ПОКАЗВАНЕ НА ИНСТАЛАЦИЯТА ТУК
+                    // *** ПРОМЯНА: Показване на инсталацията
+                    showInstallPrompt(); 
                 } else {
                     // ГРЕШКА
                     if (data.message.includes('Кодът е блокиран')) {
-                         alert(`Грешка: ${data.message} \n\n Ако кодът Ви е работил преди, той е временно блокиран, но Вашето устройство остава активирано. Пробвайте отново, когато изтече таймерът.`);
+                        alert(`Грешка: ${data.message} \n\n Ако кодът Ви е работил преди, той е временно блокиран, но Вашето устройство остава активирано. Пробвайте отново, когато изтече таймерът.`);
                     } else {
-                         alert(data.message || "Грешка при активирането. Пробвайте отново.");
-                         localStorage.removeItem(LS_UNLOCKED_STATUS);
+                        alert(data.message || "Грешка при активирането. Пробвайте отново.");
+                        localStorage.removeItem(LS_UNLOCKED_STATUS);
                     }
                 }
 
