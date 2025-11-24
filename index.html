@@ -399,7 +399,7 @@
                 deferredPrompt = e;
                 // Покажи промпта веднага, ако вече е отключено
                 if (localStorage.getItem(LS_UNLOCKED_STATUS) === 'true') {
-                     showInstallPrompt();
+                     showPermanentInstallPrompt();
                 }
             });
             
@@ -425,7 +425,7 @@
             // Просто скрива модала, което позволява повторно показване при рефреш.
             installPrompt.style.display = 'none';
         });
-    
+        
         
         // ==============================================================================
         // ФУНКЦИИ ЗА UUID 
@@ -439,7 +439,7 @@
             }
             document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax; secure"; 
         }
-
+        
         function getCookie(name) {
             const nameEQ = name + "=";
             const ca = document.cookie.split(';');
@@ -450,7 +450,7 @@
             }
             return null;
         }
-
+        
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 const r = Math.random() * 16 | 0, 
@@ -458,7 +458,7 @@
                 return v.toString(16);
             });
         }
-
+        
         function getOrCreateUUID() {
             let uuid = localStorage.getItem(LS_UUID);
             
@@ -476,22 +476,21 @@
             
             return uuid;
         }
-
-
+        
+        
         // ==============================================================================
         // ПОМОЩНИ ФУНКЦИИ
         // ==============================================================================
         function roundMoney(amount) {
             return Math.round((amount + Number.EPSILON) * 100) / 100;
         }
-
-        // *** НОВА ФУНКЦИЯ ЗА ИЗТРИВАНЕ НА COOKIE ***
+        
         function deleteUUIDCookie() {
             // Изтрива бисквитката, като задава изтекъл срок
             document.cookie = COOKIE_UUID + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; secure';
         }
-
-
+        
+        
         // ==============================================================================
         // ЛОГИКА ЗА АВТОМАТИЧНО НУЛИРАНЕ СЛЕД 10 ЧАСА (ВКЛЮЧИТЕЛНО UUID)
         // ==============================================================================
@@ -501,7 +500,7 @@
             const lastResetTime = parseInt(localStorage.getItem('resto_lastResetTime') || '0', 10);
             const currentTime = new Date().getTime();
             const isProActive = localStorage.getItem(LS_UNLOCKED_STATUS) === 'true'; 
-
+        
             // Изпълнява се само ако е Pro версията и са минали 10 часа
             if (isProActive && (currentTime - lastResetTime > TEN_HOURS_IN_MS)) {
                 
@@ -514,7 +513,7 @@
                 document.getElementById('totalBillDisplay').innerText = '0.00';
                 document.getElementById('cashWarning').innerText = '';
                 document.querySelector('.results').style.color = "black";
-
+        
                 // 2. Нулиране на наличността в евро
                 document.getElementById('cashEur').value = '';
                 localStorage.removeItem('resto_cashEur');
@@ -525,12 +524,12 @@
                 
                 // 4. Записваме ново време за нулиране
                 localStorage.setItem('resto_lastResetTime', currentTime);
-
+        
                 console.log("Автоматично ПЪЛНО НУЛИРАНЕ (полета, наличност и UUID) след 10 часа.");
             }
         }
-
-
+        
+        
         // ==============================================================================
         // ЛОГИКА ЗА ОТКЛЮЧВАНЕ (Apps Script)
         // ==============================================================================
@@ -542,15 +541,15 @@
             
             const uuid = getOrCreateUUID();
             console.log("Current Device UUID:", uuid);
-
-
+        
+        
             if (isUnlocked) {
                 fullLockOverlay.style.display = 'none';
                 lockedContent.style.opacity = '1';
                 lockedContent.style.pointerEvents = 'auto'; 
                 
-                // *** ПРОМЯНА: Показване на PWA промпта, ако е налично (след отключване)
-                showInstallPrompt();
+                // *** ИЗВИКВАНЕ НА НОВАТА ФУНКЦИЯ
+                showPermanentInstallPrompt();
             } else {
                 fullLockOverlay.style.display = 'flex';
                 lockedContent.style.opacity = '0'; 
@@ -558,15 +557,34 @@
             }
         }
         
-        // ФУНКЦИЯ ЗА ПОКАЗВАНЕ НА ИНСТАЛАЦИОННИЯ ПРОЗОРЕЦ (ПРОМЕНЕНА: без таймер)
-        function showInstallPrompt() {
-              // Показва модала само ако deferredPrompt е налично (т.е. браузърът го поддържа)
-              // и приложението не е инсталирано като standalone.
-             if (deferredPrompt && !window.matchMedia('(display-mode: standalone)').matches) {
-                  installPrompt.style.display = 'block';
-             }
-        }
+        // *** НОВА ФУНКЦИЯ ЗА ПЕРМАНЕНТНО ПОКАЗВАНЕ С ПРОВЕРКИ ***
+        function showPermanentInstallPrompt() {
+            // 1. Проверяваме дали вече е инсталирано (standalone режим)
+            const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
 
+            if (isInstalled) {
+                // Ако вече е инсталирано, не правим нищо
+                installPrompt.style.display = 'none';
+                return;
+            }
+            
+            // 2. Дефинираме функция, която се опитва да покаже прозореца
+            function attemptToShow() {
+                if (deferredPrompt) {
+                    // Ако deferredPrompt е налично, показваме модала и спираме проверката
+                    installPrompt.style.display = 'block';
+                    clearInterval(checkInterval);
+                }
+                // Ако не е налично, интервалът ще опита отново след 500ms
+            }
+
+            // 3. Изпълняваме първи опит веднага, в случай че deferredPrompt е вече налично
+            attemptToShow();
+
+            // 4. Задаваме интервал за повтаряне на опита, докато prompt-ът не се появи
+            const checkInterval = setInterval(attemptToShow, 500); 
+        }
+        
         async function unlockFeature() { 
             const unlockKey = document.getElementById('unlockKey').value.trim();
             const userEmail = document.getElementById('userEmail').value.trim().toLowerCase(); 
@@ -576,25 +594,26 @@
                 alert("Моля, въведете Вашия код.");
                 return;
             }
-
+        
             // Временно съобщение по време на AJAX заявката
             document.getElementById('unlockKey').placeholder = "Проверка на кода и имейла... Моля, изчакайте.";
             document.querySelector('.lock-content .btn-unlock-buy').disabled = true;
-
+        
             try {
                 // ИЗПРАЩАНЕ НА КОД, ИМЕЙЛ И UUID КЪМ APPS SCRIPT
                 const url = `${API_ENDPOINT}?key=${encodeURIComponent(unlockKey)}&email=${encodeURIComponent(userEmail)}&uuid=${encodeURIComponent(uuid)}`;
                 const response = await fetch(url);
                 const data = await response.json();
-
+        
                 if (data.status === 'success') {
                     // УСПЕШНО ОТКЛЮЧВАНЕ
                     localStorage.setItem(LS_UNLOCKED_STATUS, 'true');
                     // *** НОВО: Записваме време за нулиране при активация, за да започне брояча
                     localStorage.setItem('resto_lastResetTime', new Date().getTime());
                     alert(`Успех! Приложението е отключено! ${data.message}`);
-                    // *** ПРОМЯНА: Показване на инсталацията
-                    showInstallPrompt(); 
+                    
+                    // *** ИЗВИКВАНЕ НА НОВАТА ФУНКЦИЯ
+                    showPermanentInstallPrompt(); 
                 } else {
                     // ГРЕШКА
                     if (data.message.includes('Кодът е блокиран')) {
@@ -604,7 +623,7 @@
                         localStorage.removeItem(LS_UNLOCKED_STATUS);
                     }
                 }
-
+        
             } catch (error) {
                 alert("Грешка при свързване със сървъра. Проверете връзката си.");
                 console.error('API Error:', error);
@@ -628,7 +647,7 @@
                 localStorage.setItem('resto_cashEur', document.getElementById('cashEur').value);
             }
         }
-
+        
         function loadCashLimits() {
             const savedCashEur = localStorage.getItem('resto_cashEur');
             if (savedCashEur !== null) {
@@ -637,10 +656,10 @@
                 document.getElementById('cashEur').value = '';
             }
         }
-
+        
         function calculateResto() {
             const isProActive = localStorage.getItem(LS_UNLOCKED_STATUS) === 'true';
-
+        
             if (!isProActive) {
                 alert("Приложението е заключено. Моля, въведете ключ за достъп.");
                 return; 
@@ -652,7 +671,7 @@
             
             let cashEurValue = document.getElementById('cashEur').value;
             let cashEurAvailable = cashEurValue === '' ? Infinity : parseFloat(cashEurValue); 
-
+        
             let totalBillInLeva = (billEurInput * EURO_RATE);
             let totalPaidInLeva = (paidEur * EURO_RATE) + paidBgn;
             let rawChangeLeva = totalPaidInLeva - totalBillInLeva;
@@ -660,7 +679,7 @@
             document.getElementById('totalBillDisplay').innerText = roundMoney(totalBillInLeva).toFixed(2);
             document.getElementById('cashWarning').innerText = ''; 
             document.querySelector('.results').style.color = "black";
-
+        
             if (rawChangeLeva < -0.009) {
                 document.getElementById('resEur').innerText = "Недостиг!";
                 document.getElementById('resBgn').innerText = roundMoney(Math.abs(rawChangeLeva)).toFixed(2) + " лв";
@@ -672,7 +691,7 @@
                  document.getElementById('resBgn').innerText = "0.00";
                  return;
             }
-
+        
             let totalChangeLeva = roundMoney(rawChangeLeva); 
             let finalEurToReturn = 0;
             let finalBgnToReturn = 0;
@@ -685,12 +704,12 @@
                 
             } else {
                 finalEurToReturn = cashEurAvailable; 
-
+        
                 let eurInLevaReturned = finalEurToReturn * EURO_RATE;
                 let remainingChangeInLeva = totalChangeLeva - eurInLevaReturned;
                 
                 finalBgnToReturn = roundMoney(remainingChangeInLeva);
-
+        
                 if (cashEurAvailable !== Infinity) {
                     document.getElementById('cashWarning').innerText = `ВНИМАНИЕ: Недостатъчно евро. Връщаш ${finalEurToReturn.toFixed(2)}€ и остатъка (${finalBgnToReturn.toFixed(2)} лв.) в лева.`;
                     document.querySelector('.results').style.color = "orange";
@@ -700,10 +719,10 @@
             document.getElementById('resEur').innerText = finalEurToReturn.toFixed(2);
             document.getElementById('resBgn').innerText = finalBgnToReturn.toFixed(2);
         }
-
+        
         function resetFields() {
             const isProActive = localStorage.getItem(LS_UNLOCKED_STATUS) === 'true';
-
+        
             if (!isProActive) {
                 alert("Приложението е заключено. Моля, въведете ключ за достъп.");
                 return; 
@@ -718,7 +737,7 @@
             document.getElementById('totalBillDisplay').innerText = '0.00';
             document.getElementById('cashWarning').innerText = ''; 
             document.querySelector('.results').style.color = "black";
-
+        
             document.getElementById('cashEur').value = '';
             localStorage.removeItem('resto_cashEur');
             
